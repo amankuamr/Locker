@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; }
+    .container { max-width: 400px; margin: 40px auto; background: #fff; padding: 24px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    h2 { text-align: center; margin-bottom: 24px; }
+    input[type="email"], input[type="password"] {
+      width: 100%; padding: 10px; margin-bottom: 16px; border: 1px solid #ccc; border-radius: 4px;
+    }
+    button { width: 100%; padding: 12px; background: #007bff; color: #fff; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
+    button:active { background: #0056b3; }
+    .switch { text-align: center; margin-top: 16px; }
+    .error { color: #dc3545; margin-bottom: 12px; text-align: center; }
+  </style>
+  <!-- Firebase App (the core Firebase SDK) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h2>Sign In</h2>
+    <div class="error" id="error"></div>
+    <input type="email" id="email" placeholder="Email" required />
+    <input type="password" id="password" placeholder="Password" required />
+    <button id="signinBtn">Sign In</button>
+    <div class="switch">
+      Don't have an account? <a href="signup.html">Sign Up</a>
+    </div>
+  </div>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAf_WawpThflMkxwH-aJePnxH27szrdHAU",
+      authDomain: "digilocker-207a3.firebaseapp.com",
+      projectId: "digilocker-207a3",
+      storageBucket: "digilocker-207a3.firebasestorage.app",
+      messagingSenderId: "951320059184",
+      appId: "1:951320059184:web:5916936ed49afaf378bcf5",
+      measurementId: "G-1RXWJX6KEV"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    document.getElementById('signinBtn').onclick = async function() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const errorDiv = document.getElementById('error');
+      errorDiv.textContent = '';
+      if (!email || !password) {
+        errorDiv.textContent = 'Please enter email and password.';
+        return;
+      }
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+        window.location.href = 'mobile_upload.html';
+      } catch (err) {
+        errorDiv.textContent = err.message;
+      }
+    };
+  </script>
+</body>
+</html>
