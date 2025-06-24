@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mobile File Upload</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f7f7f7;
+      color: #222;
+    }
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .upload-section {
+      background: #fff;
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      margin-bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .upload-section input[type="file"] {
+      width: 100%;
+    }
+    .upload-section button {
+      padding: 10px;
+      background: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .upload-section button:active {
+      background: #0056b3;
+    }
+    .uploaded-files {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .file-card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .file-card .file-name {
+      font-weight: bold;
+      word-break: break-all;
+    }
+    .file-card .actions {
+      display: flex;
+      gap: 8px;
+    }
+    .file-card .actions button {
+      flex: 1;
+      padding: 8px;
+      font-size: 14px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .file-card .actions .view {
+      background: #28a745;
+      color: #fff;
+    }
+    .file-card .actions .download {
+      background: #17a2b8;
+      color: #fff;
+    }
+    .file-card .actions .delete {
+      background: #dc3545;
+      color: #fff;
+    }
+    @media (max-width: 600px) {
+      .container {
+        padding: 8px;
+      }
+      .upload-section, .file-card {
+        padding: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+      <h2 style="margin: 0;">Mobile File Upload</h2>
+      <button id="logoutBtn" style="padding: 8px 14px; background: #dc3545; color: #fff; border: none; border-radius: 4px; font-size: 14px; cursor: pointer;">Logout</button>
+    </div>
+    <div class="upload-section">
+      <input type="text" id="nameInput" placeholder="Enter file name" maxlength="100" style="padding:8px; border-radius:4px; border:1px solid #ccc;" />
+      <input type="file" id="fileInput" multiple />
+      <button id="uploadBtn">Upload</button>
+    </div>
+    <h3>Uploaded Files</h3>
+    <div class="uploaded-files" id="uploadedFiles"></div>
+  </div>
+  <!-- Firebase App (the core Firebase SDK) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAf_WawpThflMkxwH-aJePnxH27szrdHAU",
+      authDomain: "digilocker-207a3.firebaseapp.com",
+      projectId: "digilocker-207a3",
+      storageBucket: "digilocker-207a3.firebasestorage.app",
+      messagingSenderId: "951320059184",
+      appId: "1:951320059184:web:5916936ed49afaf378bcf5",
+      measurementId: "G-1RXWJX6KEV"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let currentUser = null;
+    // Redirect to signin.html if not authenticated, else load files
+    auth.onAuthStateChanged(async function(user) {
+      if (!user) {
+        window.location.href = 'signin.html';
+      } else {
+        currentUser = user;
+        await loadUserFiles();
+      }
+    });
+
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const uploadedFiles = document.getElementById('uploadedFiles');
+    const logoutBtn = document.getElementById('logoutBtn');
+    let filesList = [];
+    const nameInput = document.getElementById('nameInput');
+
+    async function loadUserFiles() {
+      filesList = [];
+      if (!currentUser) return;
+      try {
+        const snapshot = await db.collection('uploads')
+          .where('uid', '==', currentUser.uid)
+          .orderBy('timestamp', 'desc')
+          .get();
+        snapshot.forEach(doc => {
+          filesList.push({ ...doc.data(), id: doc.id });
+        });
+      } catch (err) {
+        // If index is missing, fallback to no orderBy
+        if (err.code === 'failed-precondition' || err.message.includes('index')) {
+          try {
+            const snapshot = await db.collection('uploads')
+              .where('uid', '==', currentUser.uid)
+              .get();
+            snapshot.forEach(doc => {
+              filesList.push({ ...doc.data(), id: doc.id });
+            });
+            alert('Firestore index is missing for sorting. Showing unsorted results.');
+          } catch (e2) {
+            alert('Error loading files: ' + e2.message);
+          }
+        } else {
+          alert('Error loading files: ' + err.message);
+        }
+      }
+      renderFiles();
+    }
+
+    logoutBtn.onclick = function() {
+      auth.signOut().then(function() {
+        window.location.href = 'signin.html';
+      });
+    };
+
+    function renderFiles() {
+      uploadedFiles.innerHTML = '';
+      filesList.forEach((fileObj, idx) => {
+        const card = document.createElement('div');
+        card.className = 'file-card';
+        card.innerHTML = `
+          <div class="file-name">${fileObj.name}</div>
+          <div class="actions">
+            <button class="view">View</button>
+            <button class="download">Download</button>
+            <button class="delete">Delete</button>
+          </div>
+        `;
+        // View
+        card.querySelector('.view').onclick = () => {
+          window.open(fileObj.url, '_blank');
+        };
+        // Download
+        card.querySelector('.download').onclick = () => {
+          let downloadUrl = fileObj.url;
+          const filename = (fileObj.name || fileObj.originalName || 'file').replace(/[^a-zA-Z0-9_.-]/g, '_');
+          // Only modify if this is a Cloudinary URL with /upload/
+          if (/cloudinary\.com\/.+\/upload\//.test(downloadUrl)) {
+            downloadUrl = downloadUrl.replace(/\/upload\//, `/upload/fl_attachment:${filename}/`);
+          }
+          const a = document.createElement('a');
+          a.href = downloadUrl;
+          a.download = filename;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            document.body.removeChild(a);
+          }, 100);
+        };
+        // Delete
+        card.querySelector('.delete').onclick = async () => {
+          if (fileObj.id) {
+            try {
+              await db.collection('uploads').doc(fileObj.id).delete();
+              await loadUserFiles();
+            } catch (err) {
+              alert('Failed to delete from database: ' + err.message);
+            }
+          } else {
+            filesList.splice(idx, 1);
+            renderFiles();
+          }
+        };
+        uploadedFiles.appendChild(card);
+      });
+    }
+
+    uploadBtn.onclick = async () => {
+      const files = Array.from(fileInput.files);
+      const customName = nameInput.value.trim();
+      if (files.length === 0 || !customName) {
+        alert('Please select file(s) and enter a name.');
+        return;
+      }
+      for (const file of files) {
+        // Upload to Cloudinary
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', 'Digilocker');
+        formData.append('cloud_name', 'dgyqgv15p');
+        try {
+          const res = await fetch('https://api.cloudinary.com/v1_1/dgyqgv15p/auto/upload', {
+            method: 'POST',
+            body: formData
+          });
+          const data = await res.json();
+          if (data.secure_url) {
+            // Save metadata to Firestore
+            await db.collection('uploads').add({
+              uid: currentUser.uid,
+              name: customName,
+              url: data.secure_url,
+              originalName: file.name,
+              mime: file.type,
+              timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          } else {
+            alert('Upload failed: ' + (data.error?.message || 'Unknown error'));
+          }
+        } catch (err) {
+          alert('Upload error: ' + err.message);
+        }
+      }
+      fileInput.value = '';
+      nameInput.value = '';
+      await loadUserFiles();
+    };
+  </script>
+</body>
+</html>
